@@ -60,7 +60,7 @@ packages:
   cargoo_shared:
     dependency: "direct main"
     description:
-      path: "../cargoo_shared"
+      path: cargoo_shared
       relative: true
     source: path
     version: "2.0.0"

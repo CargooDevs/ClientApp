@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
   cargoo_shared:
-    path: ../cargoo_shared
+    path: ./cargoo_shared
   supabase_flutter: ^2.5.6
   google_maps_flutter: ^2.6.1
   geolocator: ^12.0.0
