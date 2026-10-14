@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:cargoo_shared/cargoo_shared.dart';
+import 'config/app_config.dart';
 import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  const supabaseUrl = String.fromEnvironment(
+    AppConfig.supabaseUrlEnv,
+    defaultValue: '',
+  );
+  const anonKey = String.fromEnvironment(
+    AppConfig.supabaseAnonKeyEnv,
+    defaultValue: '',
+  );
+
+  if (!AppConfig.isSupabaseConfigured(supabaseUrl, anonKey)) {
+    throw FlutterError(
+      'Supabase is not configured. Run the app with --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... or set valid project values.',
+    );
+  }
+
   await SupabaseService.init(
-    url: const String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://SEU-PROJETO.supabase.co'),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'SUA_ANON_KEY'),
+    url: supabaseUrl,
+    anonKey: anonKey,
   );
 
   runApp(const CargooClientApp());
