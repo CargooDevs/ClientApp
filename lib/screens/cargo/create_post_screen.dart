@@ -17,12 +17,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _weightController = TextEditingController();
+  final _cargoApi = CargoApi();
   VehicleType? _selectedType;
-  List<VehicleType> _vehicleTypes = VehicleType.fallback;
+  List<VehicleType> _vehicleTypes = [];
   bool _needsHelper = false;
   bool _isFragile = false;
   bool _loading = true;
   bool _publishing = false;
+  String? _loadError;
 
   String _assetForVehicleType(String id) {
     switch (id.toLowerCase()) {
@@ -40,52 +42,69 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   void initState() {
     super.initState();
+    _dropoffController.addListener(_onFormChanged);
     _loadVehicleTypes();
   }
 
+  void _onFormChanged() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _loadVehicleTypes() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
-      final rows = await SupabaseService.client.from('vehicle_types').select();
-      if (rows.isNotEmpty) {
-        _vehicleTypes = rows.map((r) => VehicleType.fromMap(r)).toList();
+      final vehicleTypes = await _cargoApi.loadVehicleTypes();
+      if (vehicleTypes.isEmpty) {
+        throw StateError('Não há tipos de veículo configurados no servidor.');
       }
-    } catch (_) {}
-    if (mounted) {
+      if (!mounted) return;
       setState(() {
-        _selectedType = _vehicleTypes.first;
+        _vehicleTypes = vehicleTypes;
+        _selectedType = vehicleTypes.first;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = 'Não foi possível carregar os tipos de veículo: $error';
         _loading = false;
       });
     }
   }
 
   Future<void> _publish() async {
+    final weightText = _weightController.text.trim().replaceAll(',', '.');
+    final cargoWeightKg =
+        weightText.isEmpty ? null : double.tryParse(weightText);
+    if (weightText.isNotEmpty &&
+        (cargoWeightKg == null || cargoWeightKg <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe um peso válido maior que zero.')),
+      );
+      return;
+    }
+
     setState(() => _publishing = true);
     try {
-      final row = await SupabaseService.client
-          .from('posts')
-          .insert({
-            'user_id': SupabaseService.uid,
-            'title': _titleController.text.trim().isEmpty
-                ? 'Envio de carga'
-                : _titleController.text.trim(),
-            'status': 'open',
-            'vehicle_type_id': _selectedType!.id,
-            'category': 'cargo',
-            'description': _descriptionController.text.trim(),
-            'cargo_weight_kg':
-                double.tryParse(_weightController.text.replaceAll(',', '.')),
-            'is_fragile': _isFragile,
-            'needs_helper': _needsHelper,
-            'pickup_address': _pickupController.text,
-            'dropoff_address': _dropoffController.text,
-          })
-          .select()
-          .single();
+      final post = await _cargoApi.createPost(
+        CreateCargoPostRequest(
+          title: _titleController.text,
+          description: _descriptionController.text,
+          cargoWeightKg: cargoWeightKg,
+          isFragile: _isFragile,
+          needsHelper: _needsHelper,
+          vehicleTypeId: _selectedType!.id,
+          pickupAddress: _pickupController.text,
+          dropoffAddress: _dropoffController.text,
+        ),
+      );
 
       if (mounted) {
         Navigator.of(context).pushReplacement(MaterialPageRoute(
-            builder: (_) =>
-                PostCandidatesScreen(post: CargoPost.fromMap(row))));
+            builder: (_) => PostCandidatesScreen(post: post)));
       }
     } catch (e) {
       if (mounted) {
@@ -97,9 +116,42 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   @override
+  void dispose() {
+    _dropoffController.removeListener(_onFormChanged);
+    _pickupController.dispose();
+    _dropoffController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_loadError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Enviar carga')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: _loadVehicleTypes,
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
