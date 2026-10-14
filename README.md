@@ -16,9 +16,9 @@ Flutter app for customers to post cargo requests, request rides, and rent vehicl
    flutter run --dart-define=SUPABASE_URL=https://<project>.supabase.co --dart-define=SUPABASE_ANON_KEY=<public-key>
    ```
 
-3. Apply `supabase/migrations/20261014090000_accept_cargo_candidate.sql` to the project database. This migration adds the atomic cargo-offer acceptance API and enables Realtime for `post_candidates` when the Supabase Realtime publication exists.
+3. Apply `supabase/migrations/20261014090000_accept_cargo_candidate.sql` to a staging project first. It adds missing cargo fields, replaces public post reads with reads for authenticated registered drivers and post owners, adds cargo offer read/insert policies, exposes only driver name/rating to the owning client, adds atomic offer acceptance, and enables Realtime for `post_candidates` when the Supabase Realtime publication exists.
 
-The migration expects the `posts`, `post_candidates`, and `rides` tables and columns already used by the app. Confirm their ID types and column names against the target Supabase project before applying it. Configure row-level security so users can access only their own cargo posts and related offers; the acceptance function independently checks that the authenticated user owns the open post and that its offer is still pending.
+The migration expects UUID IDs and the existing `posts`, `post_candidates`, `rides`, and `drivers` columns shown in the Supabase schema. Review it against a staging project and back up production before applying it. The acceptance function independently checks that the authenticated user owns the open post and that its offer is still pending.
 
 ## Checks
 

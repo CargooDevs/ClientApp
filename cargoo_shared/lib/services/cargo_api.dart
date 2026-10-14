@@ -94,16 +94,17 @@ class CargoApi {
         .from('post_candidates')
         .stream(primaryKey: ['candidate_id'])
         .eq('post_id', postId)
-        .eq('status', 'pending')
         .asyncMap((rows) async {
-      final candidates = rows.map(PostCandidate.fromMap).toList();
-      final driverIds = candidates.map((offer) => offer.driverId).toSet();
-      final driverRows = driverIds.isEmpty
+      final candidates = rows
+          .map(PostCandidate.fromMap)
+          .where((offer) => offer.status == 'pending')
+          .toList();
+      final driverRows = candidates.isEmpty
           ? <Map<String, dynamic>>[]
-          : await _client
-              .from('drivers')
-              .select('driver_id, full_name, rating')
-              .inFilter('driver_id', driverIds.toList());
+          : await _client.rpc(
+              'get_cargo_offer_driver_profiles',
+              params: {'p_post_id': postId},
+            );
       final drivers = <String, Driver>{
         for (final row in driverRows)
           row['driver_id'] as String: Driver.fromMap(row),

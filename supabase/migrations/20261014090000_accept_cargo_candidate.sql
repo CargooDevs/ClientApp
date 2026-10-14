@@ -1,3 +1,69 @@
+alter table public.posts
+  add column if not exists pickup_address text,
+  add column if not exists dropoff_address text,
+  add column if not exists cargo_weight_kg numeric,
+  add column if not exists is_fragile boolean not null default false,
+  add column if not exists needs_helper boolean not null default false;
+
+alter table public.post_candidates
+  add column if not exists status text not null default 'pending';
+
+drop policy if exists "posts are public" on public.posts;
+drop policy if exists "cargo drivers read open posts" on public.posts;
+create policy "cargo drivers read open posts"
+  on public.posts
+  for select
+  to authenticated
+  using (
+    status = 'open'
+    and category = 'cargo'
+    and exists (
+      select 1
+        from public.drivers d
+       where d.driver_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "cargo participants can read offers"
+  on public.post_candidates;
+create policy "cargo participants can read offers"
+  on public.post_candidates
+  for select
+  to authenticated
+  using (
+    driver_id = (select auth.uid())
+    or exists (
+      select 1
+        from public.posts p
+       where p.post_id = post_candidates.post_id
+         and p.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "registered drivers can propose cargo offers"
+  on public.post_candidates;
+create policy "registered drivers can propose cargo offers"
+  on public.post_candidates
+  for insert
+  to authenticated
+  with check (
+    driver_id = (select auth.uid())
+    and status = 'pending'
+    and proposed_price > 0
+    and exists (
+      select 1
+        from public.drivers d
+       where d.driver_id = (select auth.uid())
+    )
+    and exists (
+      select 1
+        from public.posts p
+       where p.post_id = post_candidates.post_id
+         and p.status = 'open'
+         and p.category = 'cargo'
+    )
+  );
+
 create or replace function public.accept_cargo_candidate(p_candidate_id uuid)
 returns jsonb
 language plpgsql
@@ -34,6 +100,10 @@ begin
     raise exception 'Cargo post was not found.' using errcode = 'P0002';
   end if;
 
+  if v_post.user_id is distinct from v_user_id then
+    raise exception 'Only the owner can accept an offer.' using errcode = '42501';
+  end if;
+
   select *
     into v_candidate
     from public.post_candidates
@@ -48,16 +118,18 @@ begin
     raise exception 'Cargo offer is no longer pending.' using errcode = 'P0001';
   end if;
 
-  if v_post.user_id is distinct from v_user_id then
-    raise exception 'Only the owner can accept an offer.' using errcode = '42501';
-  end if;
-
   if v_post.status <> 'open' then
     raise exception 'Cargo post is no longer open.' using errcode = 'P0001';
   end if;
 
   if v_candidate.proposed_price is null or v_candidate.proposed_price < 0 then
     raise exception 'Cargo offer has no valid price.' using errcode = '22023';
+  end if;
+
+  if nullif(btrim(v_post.pickup_address), '') is null
+     or nullif(btrim(v_post.dropoff_address), '') is null then
+    raise exception 'Cargo post must have pickup and drop-off addresses.'
+      using errcode = '22023';
   end if;
 
   insert into public.rides (
@@ -99,6 +171,37 @@ $$;
 
 revoke all on function public.accept_cargo_candidate(uuid) from public, anon;
 grant execute on function public.accept_cargo_candidate(uuid) to authenticated;
+
+create or replace function public.get_cargo_offer_driver_profiles(p_post_id uuid)
+returns table(driver_id uuid, full_name text, rating numeric)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null or not exists (
+    select 1
+      from public.posts p
+     where p.post_id = p_post_id
+       and p.user_id = auth.uid()
+  ) then
+    raise exception 'Only the cargo post owner can view offer profiles.'
+      using errcode = '42501';
+  end if;
+
+  return query
+    select d.driver_id, d.full_name, coalesce(d.rating, 5)::numeric
+      from public.post_candidates pc
+      join public.drivers d on d.driver_id = pc.driver_id
+     where pc.post_id = p_post_id
+       and pc.status = 'pending';
+end;
+$$;
+
+revoke all on function public.get_cargo_offer_driver_profiles(uuid)
+  from public, anon;
+grant execute on function public.get_cargo_offer_driver_profiles(uuid)
+  to authenticated;
 
 do $$
 begin
