@@ -12,6 +12,7 @@ export 'theme/app_theme.dart';
 
 export 'services/supabase_service.dart';
 export 'services/cargo_api.dart';
+export 'services/ride_api.dart';
 export 'services/chat_helper.dart';
 
 export 'widgets/custom_button.dart';

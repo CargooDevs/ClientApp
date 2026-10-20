@@ -4,11 +4,13 @@ enum RideStatus {
   pickingUp,
   inTransit,
   delivered,
-  cancelled;
+  cancelled,
+  unknown;
 
   static RideStatus fromDb(String value) {
     switch (value) {
       case 'searching':
+      case 'requested':
         return RideStatus.searching;
       case 'driver_assigned':
         return RideStatus.driverAssigned;
@@ -18,8 +20,10 @@ enum RideStatus {
         return RideStatus.inTransit;
       case 'delivered':
         return RideStatus.delivered;
-      default:
+      case 'cancelled':
         return RideStatus.cancelled;
+      default:
+        return RideStatus.unknown;
     }
   }
 
@@ -37,6 +41,8 @@ enum RideStatus {
         return 'delivered';
       case RideStatus.cancelled:
         return 'cancelled';
+      case RideStatus.unknown:
+        throw StateError('Cannot persist an unknown ride status.');
     }
   }
 
@@ -54,6 +60,8 @@ enum RideStatus {
         return 'Concluído';
       case RideStatus.cancelled:
         return 'Cancelado';
+      case RideStatus.unknown:
+        return 'Estado da corrida indisponível';
     }
   }
 }
@@ -97,6 +105,8 @@ class Ride {
         paymentId: map['payment_id'] as String?,
         status: RideStatus.fromDb(map['status'] as String? ?? 'searching'),
         convId: map['conv_id'] as String?,
-        rideType: (map['ride_type'] as String?) == 'cargo' ? RideType.cargo : RideType.passenger,
+        rideType: (map['ride_type'] as String?) == 'cargo'
+            ? RideType.cargo
+            : RideType.passenger,
       );
 }
