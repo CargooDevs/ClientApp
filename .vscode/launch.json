@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "Cargoo",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://ahzuyaeghftnccsjmfyx.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_xPrXoXlN2e-AlZV8gwAYmA_q5u30c5F"
+      ]
+    }
+  ]
+}

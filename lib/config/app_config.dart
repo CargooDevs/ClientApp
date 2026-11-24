@@ -1,6 +1,6 @@
 class AppConfig {
   static const String supabaseUrlEnv = 'SUPABASE_URL';
-  static const String supabaseAnonKeyEnv = 'SUPABASE_ANON_KEY';
+  static const String supabasePublishableKey = 'SUPABASE_PUBLISHABLE_KEY';
 
   static bool isSupabaseConfigured(String url, String anonKey) {
     final normalizedUrl = url.trim();

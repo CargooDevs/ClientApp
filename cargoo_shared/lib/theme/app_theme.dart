@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
@@ -18,7 +18,8 @@ class AppColors {
 class AppTheme {
   static ThemeData get light {
     final base = ThemeData.light(useMaterial3: true);
-    final textTheme = GoogleFonts.interTextTheme(base.textTheme);
+    final textTheme = base.textTheme;
+    // GoogleFonts.interTextTheme(base.textTheme);
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.background,

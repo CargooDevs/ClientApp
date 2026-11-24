@@ -1,5 +1,3 @@
-library cargoo_shared;
-
 export 'models/core_models.dart';
 export 'models/driver.dart';
 export 'models/post.dart';
