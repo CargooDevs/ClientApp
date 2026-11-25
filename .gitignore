@@ -33,6 +33,15 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Gradle / Android build output
+**/build/
+/android/.gradle/
+/android/local.properties
+/android/app/.cxx/
+*.jks
+*.keystore
+key.properties
+
 # Symbolication related
 app.*.symbols
 
